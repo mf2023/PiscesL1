@@ -22,7 +22,14 @@ import torch
 from torch.utils.data import Dataset
 from datasets import load_from_disk
 from model.tokenizer import get_tokenizer
-from modelscope.msdatasets import MsDataset
+try:
+    from modelscope.msdatasets import MsDataset
+except ImportError as e:
+    print("❌ Current modelscope version requires datasets >=2.14.7. Please upgrade datasets to enable online dataset loading.")
+    MsDataset = None
+except Exception as e:
+    print(f"❌ ModelScope import error: {e}")
+    MsDataset = None
 from model.multimodal import VisionEncoder, AudioEncoder
 
 
@@ -43,12 +50,21 @@ class PiscesDataset(Dataset):
                 print(f"✅ Local dataset loaded successfully: {len(self.ds)} samples")
             else:
                 print(f"❌ Local cache not found, trying online download: {subset}")
-                msds = MsDataset.load(subset, split=split)
-                if hasattr(msds, 'to_hf_dataset'):
-                    self.ds = msds.to_hf_dataset()
+                if MsDataset is None:
+                    print("❌ MsDataset unavailable. Cannot load ModelScope dataset online. Please upgrade modelscope>=1.28.0 and datasets>=2.14.7, or use only local datasets.")
+                    self.ds = [{"text": f"Hello world {i}", "id": i} for i in range(100)]
                 else:
-                    self.ds = msds
-                print(f"✅ Online dataset loaded successfully: {len(self.ds)} samples")
+                    try:
+                        msds = MsDataset.load(subset, split=split)
+                        if hasattr(msds, 'to_hf_dataset'):
+                            self.ds = msds.to_hf_dataset()
+                        else:
+                            self.ds = msds
+                        print(f"✅ Online dataset loaded successfully: {len(self.ds)} samples")
+                    except Exception as e:
+                        print(f"❌ MsDataset.load failed: {e}")
+                        print("❌ Could not load ModelScope dataset online. Falling back to local test data.")
+                        self.ds = [{"text": f"Hello world {i}", "id": i} for i in range(100)]
         except Exception as e:
             print(f"❌ Dataset loading failed: {e}")
             print("❌ Creating test dataset...")

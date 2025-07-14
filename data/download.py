@@ -19,7 +19,13 @@
 
 import os
 import shutil
-from modelscope.msdatasets import MsDataset
+try:
+    from modelscope.msdatasets import MsDataset
+except ImportError as e:
+    print("❌ Current modelscope version requires datasets >=2.14.7. Please upgrade datasets to enable ModelScope dataset download."); MsDataset = None
+except Exception as e:
+    print(f"❌ ModelScope import error: {e}"); MsDataset = None
+
 
 ROOT = os.path.dirname(__file__)
 DATA = os.path.join(ROOT, "..", "data_cache")
@@ -70,6 +76,9 @@ def download_datasets(max_samples_per_dataset=50000):
     
     success_count = 0
     for dataset_name, save_name, description in datasets:
+        if MsDataset is None:
+            print(f"❌ MsDataset unavailable. Skipping {dataset_name}. Please upgrade modelscope>=1.28.0 and datasets>=2.14.7.")
+            continue
         try:
             print(f"✅ Downloading {description} ({dataset_name})...")
             ds = MsDataset.load(dataset_name, split='train')

@@ -28,6 +28,20 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+# --- Patch for modelscope 1.28.0 + datasets 2.14.7 compatibility ---
+try:
+    from datasets import exceptions as _ds_exceptions
+    if not hasattr(_ds_exceptions, "DataFilesNotFoundError"):
+        class DataFilesNotFoundError(FileNotFoundError):
+            pass
+        _ds_exceptions.DataFilesNotFoundError = DataFilesNotFoundError
+    if not hasattr(_ds_exceptions, "DatasetNotFoundError"):
+        class DatasetNotFoundError(FileNotFoundError):
+            pass
+        _ds_exceptions.DatasetNotFoundError = DatasetNotFoundError
+except Exception as e:
+    print(f"❌ Patch for datasets.exceptions failed: {e}")
+
 def setup_env():
     """Auto setup venv and install requirements if needed"""
     print("🐟 Pisces auto environment setup...")
