@@ -20,13 +20,19 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+import math
 
+def moe_init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_uniform_(m.weight, a=math.sqrt(5))
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
 
 class MoEGate(nn.Module):
     """Expert routing gate for MoE"""
-    def __init__(self, hidden_size, num_experts):
+    def __init__(self, hidden_size, num_experts, device=None, dtype=None):
         super().__init__()
-        self.gate = nn.Linear(hidden_size, num_experts, bias=False)
+        self.gate = nn.Linear(hidden_size, num_experts, bias=False, device=device, dtype=dtype)
     
     def forward(self, x):
         logits = self.gate(x)
@@ -34,29 +40,35 @@ class MoEGate(nn.Module):
         scores = F.softmax(scores, dim=-1, dtype=torch.float32).type_as(x)
         return scores, idx
 
-
 class MoELayer(nn.Module):
-    """Mixture of Experts layer"""
-    def __init__(self, cfg):
+    """Mixture of Experts layer (Kimi-K2/Qwen style optimized init)"""
+    def __init__(self, cfg, device=None, dtype=None, print_every=8):
         super().__init__()
         self.cfg = cfg
-        self.gate = MoEGate(cfg.hidden_size, cfg.moe_num_experts)
-        self.experts = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(cfg.hidden_size, cfg.intermediate_size, bias=False),
+        self.gate = MoEGate(cfg.hidden_size, cfg.moe_num_experts, device=device, dtype=dtype)
+        self.experts = nn.ModuleList()
+        n = cfg.moe_num_experts
+        print(f"[DEBUG] MoELayer: initializing {n} experts...")
+        for i in range(n):
+            if (i % print_every == 0) or (i == n-1):
+                print(f"[DEBUG] MoELayer: initializing expert {i+1}/{n}")
+            expert = nn.Sequential(
+                nn.Linear(cfg.hidden_size, cfg.intermediate_size, bias=False, device=device, dtype=dtype),
                 nn.SiLU(),
-                nn.Linear(cfg.intermediate_size, cfg.hidden_size, bias=False)
-            ) for _ in range(cfg.moe_num_experts)
-        ])
+                nn.Linear(cfg.intermediate_size, cfg.hidden_size, bias=False, device=device, dtype=dtype)
+            )
+            expert.apply(moe_init_weights)
+            self.experts.append(expert)
+        print(f"[DEBUG] MoELayer: all {n} experts initialized.")
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"[DEBUG] MoELayer: total parameters = {total_params/1e6:.2f}M")
     
     def forward(self, x):
         b, t, d = x.shape
         h = x.view(-1, d)
         scores, idx = self.gate(h)
         y = torch.zeros_like(h)
-        
         for i in range(2):
             mask = idx[:, i]
             y += scores[:, i:i+1] * torch.stack([self.experts[m](h) for m in mask])
-        
         return y.view(b, t, d)

@@ -26,9 +26,12 @@ class VisionEncoder(nn.Module):
     """Vision encoder using CLIP"""
     def __init__(self, cfg):
         super().__init__()
+        print("[DEBUG] VisionEncoder: __init__ start")
         try:
             from transformers import CLIPVisionModel
+            print("[DEBUG] VisionEncoder: loading CLIP model...")
             self.clip = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
+            print("[DEBUG] VisionEncoder: CLIP model loaded")
             self.proj = nn.Linear(768, cfg.hidden_size)
             self.enabled = True
         except Exception as e:
@@ -36,6 +39,7 @@ class VisionEncoder(nn.Module):
             print("❌ Vision encoding will be disabled")
             self.enabled = False
             self.proj = nn.Linear(cfg.hidden_size, cfg.hidden_size)  # Placeholder
+        print("[DEBUG] VisionEncoder: __init__ end")
     
     def forward(self, pixel_values):
         if not self.enabled:
@@ -49,9 +53,12 @@ class AudioEncoder(nn.Module):
     """Audio encoder using AST"""
     def __init__(self, cfg):
         super().__init__()
+        print("[DEBUG] AudioEncoder: __init__ start")
         try:
             from transformers import ASTModel
+            print("[DEBUG] AudioEncoder: loading AST model...")
             self.ast = ASTModel.from_pretrained("MIT/ast-finetuned-audioset-10-10-0.4593")
+            print("[DEBUG] AudioEncoder: AST model loaded")
             self.proj = nn.Linear(768, cfg.hidden_size)
             self.enabled = True
         except Exception as e:
@@ -59,6 +66,7 @@ class AudioEncoder(nn.Module):
             print("❌ Audio encoding will be disabled")
             self.enabled = False
             self.proj = nn.Linear(cfg.hidden_size, cfg.hidden_size)  # Placeholder
+        print("[DEBUG] AudioEncoder: __init__ end")
     
     def forward(self, audio_input):
         if not self.enabled:
@@ -72,9 +80,12 @@ class DocEncoder(nn.Module):
     """Document encoder using LayoutLMv3"""
     def __init__(self, cfg):
         super().__init__()
+        print("[DEBUG] DocEncoder: __init__ start")
         try:
             from transformers import LayoutLMv3Model
+            print("[DEBUG] DocEncoder: loading LayoutLMv3 model...")
             self.lm = LayoutLMv3Model.from_pretrained("microsoft/layoutlmv3-base")
+            print("[DEBUG] DocEncoder: LayoutLMv3 model loaded")
             self.proj = nn.Linear(768, cfg.hidden_size)
             self.enabled = True
         except Exception as e:
@@ -82,6 +93,7 @@ class DocEncoder(nn.Module):
             print("❌ Document encoding will be disabled")
             self.enabled = False
             self.proj = nn.Linear(cfg.hidden_size, cfg.hidden_size)  # Placeholder
+        print("[DEBUG] DocEncoder: __init__ end")
     
     def forward(self, doc_input):
         if not self.enabled:

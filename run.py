@@ -147,10 +147,10 @@ def train(args):
     from model import PiscesModel, PiscesConfig
     from trainer.checkpoint import save_ckpt, load_ckpt
     from transformers import get_linear_schedule_with_warmup
-    print("🚀 Starting Pisces L1 Training...")
-    
     # Default configuration
     config = "configs/0.5B.json"
+    print("🚀 Starting Pisces L1 Training...")
+    print("[DEBUG] Loading config file:", config)
     dataset = "tiny_stories"
     batch_size = 4
     epochs = 1
@@ -159,10 +159,15 @@ def train(args):
     
     # Setup device
     device = setup_device("auto")
+    print(f"[DEBUG] Device set: {device}")
     
     # Load config and model
+    print("[DEBUG] Loading PiscesConfig...")
     cfg = PiscesConfig.from_json(config)
+    print("[DEBUG] PiscesConfig loaded.")
+    print("[DEBUG] Initializing PiscesModel...")
     model = PiscesModel(cfg).to(device)
+    print("[DEBUG] PiscesModel initialized.")
 
     # Multi-GPU support
     if torch.cuda.is_available() and torch.cuda.device_count() > 1:
@@ -170,12 +175,14 @@ def train(args):
         model = torch.nn.DataParallel(model)
 
     # Setup optimizer and scheduler
+    print("[DEBUG] Initializing optimizer and scheduler...")
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
         num_warmup_steps=1000,
         num_training_steps=100000
     )
+    print("[DEBUG] Optimizer and scheduler ready.")
 
     # Load dataset (automatically downloads if needed)
     print(f"📊 Loading dataset: {dataset}")
@@ -183,11 +190,12 @@ def train(args):
     print(f"✅ Dataset loaded successfully, size: {len(train_ds)}")
 
     # Create data loader
+    print("[DEBUG] Creating DataLoader...")
     loader = DataLoader(
         train_ds,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=2,
+        num_workers=0,
         collate_fn=collate_fn,
         pin_memory=True
     )
@@ -200,39 +208,36 @@ def train(args):
     print("🎯 Starting training loop...")
     model.train()
     for epoch in range(epochs):
+        print(f"[DEBUG] Starting epoch {epoch+1}/{epochs}")
         total_loss = 0
         for step, batch in enumerate(loader):
+            print(f"[DEBUG] Epoch {epoch+1} Step {step} - Batch keys: {list(batch.keys())}")
             # Move to device
             device_batch = {
                 k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
                 for k, v in batch.items()
             }
-
+            print(f"[DEBUG] Batch moved to device.")
             # Forward pass
             _, loss, _, _ = model(**device_batch)
-
+            print(f"[DEBUG] Forward pass done. Loss: {loss.item() if hasattr(loss, 'item') else loss}")
             # Multi-GPU handling
             if torch.cuda.is_available() and torch.cuda.device_count() > 1:
                 loss = loss.mean()
-
             # Backward pass
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-
             total_loss += loss.item()
-
             if step % 50 == 0:
                 avg_loss = total_loss / (step + 1)
                 print(f"📈 Epoch {epoch + 1}/{epochs} | Step {step} | Loss: {avg_loss:.4f}")
-
         # Save checkpoint
         checkpoint_path = f"{save_dir}/pisces_{dataset}_epoch{epoch + 1}.pt"
         save_ckpt(model, optimizer, epoch + 1, checkpoint_path)
         print(f"💾 Checkpoint saved: {checkpoint_path}")
-
     print("🎉 Training completed!")
 
 
