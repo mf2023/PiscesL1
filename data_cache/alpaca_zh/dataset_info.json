@@ -1,0 +1,46 @@
+{
+  "builder_name": "csv",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "alpaca-gpt4-data-zh",
+  "dataset_size": 32156681,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/AI-ModelScope/alpaca-gpt4-data-zh@master/train.csv": {
+      "num_bytes": 31804437,
+      "checksum": null
+    }
+  },
+  "download_size": 31804437,
+  "features": {
+    "instruction": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "input": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "output": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 63961118,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 32156681,
+      "num_examples": 48818,
+      "dataset_name": "alpaca-gpt4-data-zh"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
