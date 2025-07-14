@@ -33,6 +33,9 @@ python run.py infer --ckpt ckpt/pisces_tiny_stories_epoch1.pt --prompt "Hello"
 
 **Note**: No need to run any shell or PowerShell scripts. All environment setup and dependency installation are handled by `python run.py setup`.
 
+**依赖兼容性说明**：
+> Pisces 目前仅支持 `datasets==2.13.0` 和 `modelscope==1.8.0` 的组合。其它版本会导致 ImportError 或依赖冲突。
+
 ## Model Architecture
 
 - **Base Model**: 0.5B parameters, 24 layers

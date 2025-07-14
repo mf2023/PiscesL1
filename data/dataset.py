@@ -43,7 +43,11 @@ class PiscesDataset(Dataset):
                 print(f"✅ Local dataset loaded successfully: {len(self.ds)} samples")
             else:
                 print(f"❌ Local cache not found, trying online download: {subset}")
-                self.ds = MsDataset.load(subset, split=split)
+                msds = MsDataset.load(subset, split=split)
+                if hasattr(msds, 'to_hf_dataset'):
+                    self.ds = msds.to_hf_dataset()
+                else:
+                    self.ds = msds
                 print(f"✅ Online dataset loaded successfully: {len(self.ds)} samples")
         except Exception as e:
             print(f"❌ Dataset loading failed: {e}")

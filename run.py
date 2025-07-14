@@ -21,21 +21,12 @@ import os
 import sys
 import subprocess
 import platform
-import torch
 import argparse
 import json
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-from torch.utils.data import DataLoader
-from data.dataset import PiscesDataset
-from model import PiscesModel, PiscesConfig
-from trainer.checkpoint import save_ckpt, load_ckpt
-from transformers import get_linear_schedule_with_warmup, LlamaTokenizerFast
-from PIL import Image
-from torchvision.transforms import functional as TF
 
 def setup_env():
     """Auto setup venv and install requirements if needed"""
@@ -49,14 +40,10 @@ def setup_env():
         print("🔧 Not in virtual environment. Creating venv...")
         subprocess.check_call([py_exec, "-m", "venv", venv_dir])
         print(f"✅ Virtual environment created at {venv_dir}")
-        # Activate venv and re-run setup in venv
-        if is_windows:
-            activate = os.path.join(venv_dir, "Scripts", "activate_this.py")
-        else:
-            activate = os.path.join(venv_dir, "bin", "activate_this.py")
-        exec(open(activate).read(), {'__file__': activate})
+        # Re-run in venv python
+        python_bin = os.path.join(venv_dir, "Scripts" if is_windows else "bin", "python" + (".exe" if is_windows else ""))
         print("🔄 Re-running setup in venv...")
-        os.execv(os.path.join(venv_dir, "bin" if not is_windows else "Scripts", "python" + (".exe" if is_windows else "")), ["python"] + sys.argv)
+        os.execv(python_bin, [python_bin] + sys.argv)
         return
     else:
         print("✅ Already in virtual environment.")
@@ -67,12 +54,18 @@ def setup_env():
     print("📥 Installing requirements.txt...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     print("✅ Pisces environment setup complete!")
-    print("To activate the environment in the future:")
-    if is_windows:
-        print(".\\pisces_env\\Scripts\\Activate.ps1")
-    else:
-        print("source pisces_env/bin/activate")
     print("To train: python run.py train\nTo infer: python run.py infer ...")
+    
+    if is_windows:
+        shell = os.environ.get("COMSPEC", "cmd.exe")
+        activate = os.path.join(venv_dir, "Scripts", "activate.bat")
+        print("Launching venv shell...")
+        subprocess.call([shell, "/K", activate])
+    else:
+        shell = os.environ.get("SHELL", "/bin/bash")
+        activate = os.path.join(venv_dir, "bin", "activate")
+        print("Launching venv shell...")
+        subprocess.call([shell, "-i", "-c", f"source '{activate}'; exec {shell}"])
     sys.exit(0)
 
 def parse_args():
@@ -88,6 +81,7 @@ def parse_args():
 
 def setup_device(device_pref):
     """Setup device with smart detection"""
+    import torch
     if device_pref == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     else:
@@ -106,6 +100,7 @@ def setup_device(device_pref):
 
 def collate_fn(batch):
     """Custom batch processing for variable length data"""
+    import torch
     # Text data
     input_ids = [item["input_ids"] for item in batch]
     input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=0)
@@ -132,6 +127,12 @@ def collate_fn(batch):
 
 def train(args):
     """Training function"""
+    import torch
+    from torch.utils.data import DataLoader
+    from data.dataset import PiscesDataset
+    from model import PiscesModel, PiscesConfig
+    from trainer.checkpoint import save_ckpt, load_ckpt
+    from transformers import get_linear_schedule_with_warmup
     print("🚀 Starting Pisces L1 Training...")
     
     # Default configuration
@@ -223,6 +224,11 @@ def train(args):
 
 def infer(args):
     """Inference function"""
+    import torch
+    from model import PiscesModel, PiscesConfig
+    from transformers import LlamaTokenizerFast
+    from PIL import Image
+    from torchvision.transforms import functional as TF
     print("🔮 Starting Pisces L1 Inference...")
     
     # Setup device
@@ -284,8 +290,8 @@ def infer(args):
         outputs = model.generate(
             input_ids=input_ids,
             pixel_values=pixel_values,
-            max_length=input_ids.shape[1] + args.max_length,
-            temperature=args.temperature,
+            max_length=input_ids.shape[1] + getattr(args, 'max_length', 100),
+            temperature=getattr(args, 'temperature', 0.7),
             do_sample=True,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id
@@ -315,4 +321,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -73,6 +73,8 @@ def download_datasets(max_samples_per_dataset=50000):
         try:
             print(f"✅ Downloading {description} ({dataset_name})...")
             ds = MsDataset.load(dataset_name, split='train')
+            if hasattr(ds, 'to_hf_dataset'):
+                ds = ds.to_hf_dataset()
             original_size = len(ds)
             print(f"✅ Dataset loaded successfully, original samples: {original_size:,}")
             
