@@ -11,23 +11,67 @@ A 0.5B multimodal MoE model supporting text/image/audio/document, can run infere
 
 ## Quick Start
 
+### GPU Check
+
+Before training, check your GPU status:
+```bash
+python tools/check_gpu.py
+```
+
 ### Installation
+
+#### Option 1: Using Virtual Environment (Recommended)
+
+**On Windows:**
+```powershell
+# Run the setup script
+.\setup_env.ps1
+
+# Or manually:
+python -m venv pisces_env
+.\pisces_env\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+**On Linux/macOS:**
+```bash
+# Run the setup script
+chmod +x setup_env.sh
+./setup_env.sh
+
+# Or manually:
+python3 -m venv pisces_env
+source pisces_env/bin/activate
+pip install -r requirements.txt
+```
+
+#### Option 2: Direct Installation (Not Recommended)
 ```bash
 pip install -r requirements.txt
 ```
 
-### Inference
+**Note**: Running pip as root can cause permission issues. Use a virtual environment instead.
+
+### 🚀 One-Click Usage
+
+Pisces provides unified training and inference:
+
+#### Training
 ```bash
-python scripts/infer_demo.py --ckpt path/to/checkpoint.pt --prompt "Hello world"
+# Start training (auto-downloads dataset)
+python run.py train
+
+# Or just
+python run.py
 ```
 
-### Training
+#### Inference
 ```bash
-# Download datasets first
-python data/download.py
+# Text inference
+python run.py infer --ckpt ckpt/pisces_tiny_stories_epoch1.pt --prompt "Hello"
 
-# Start training
-python trainer/train.py --config configs/0.5B.json --dataset tiny
+# Multimodal inference
+python run.py infer --ckpt ckpt/pisces_tiny_stories_epoch1.pt --prompt "Describe this image" --image image.jpg
 ```
 
 ## Model Architecture

@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+
+# Copyright © 2025 Wenze Wei
+#
+# This file is part of Pisces.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+import os
+import sys
+import torch
+import argparse
+import json
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from torch.utils.data import DataLoader
+from data.dataset import PiscesDataset
+from model import PiscesModel, PiscesConfig
+from trainer.checkpoint import save_ckpt, load_ckpt
+from transformers import get_linear_schedule_with_warmup, LlamaTokenizerFast
+from PIL import Image
+from torchvision.transforms import functional as TF
+
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="Pisces L1 - One-Click Training and Inference")
+    parser.add_argument("mode", nargs='?', default="train", choices=["train", "infer"], help="Mode: train or infer (default: train)")
+    
+    # Simple parameters with defaults
+    parser.add_argument("--ckpt", default="", help="Model file for inference")
+    parser.add_argument("--prompt", default="Hello, please introduce yourself", help="Prompt text for inference")
+    parser.add_argument("--image", default="", help="Image path for inference")
+    
+    return parser.parse_args()
+
+
+def setup_device(device_pref):
+    """Setup device with smart detection"""
+    if device_pref == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(device_pref)
+    
+    print(f"✅ Using device: {device}")
+    
+    if torch.cuda.is_available():
+        print(f"✅ GPU: {torch.cuda.get_device_name(0)}")
+        print(f"✅ GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    else:
+        print("⚠️ No GPU available, using CPU")
+    
+    return device
+
+
+def collate_fn(batch):
+    """Custom batch processing for variable length data"""
+    # Text data
+    input_ids = [item["input_ids"] for item in batch]
+    input_ids = torch.nn.utils.rnn.pad_sequence(input_ids, batch_first=True, padding_value=0)
+
+    # Image data
+    pixel_values = None
+    if any(item["pixel_values"] is not None for item in batch):
+        pixel_values = torch.cat([item["pixel_values"] for item in batch if item["pixel_values"] is not None])
+
+    # Audio data
+    audio_input = None
+    if any(item["audio_input"] is not None for item in batch):
+        audio_input = torch.cat([item["audio_input"] for item in batch if item["audio_input"] is not None])
+
+    labels = input_ids.clone()  # Autoregressive labels
+
+    return {
+        "input_ids": input_ids,
+        "labels": labels,
+        "pixel_values": pixel_values,
+        "audio_input": audio_input
+    }
+
+
+def train(args):
+    """Training function"""
+    print("🚀 Starting Pisces L1 Training...")
+    
+    # Default configuration
+    config = "configs/0.5B.json"
+    dataset = "tiny_stories"
+    batch_size = 4
+    epochs = 1
+    lr = 5e-5
+    save_dir = "ckpt"
+    
+    # Setup device
+    device = setup_device("auto")
+    
+    # Load config and model
+    cfg = PiscesConfig.from_json(config)
+    model = PiscesModel(cfg).to(device)
+
+    # Multi-GPU support
+    if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+        print(f"✅ Using {torch.cuda.device_count()} GPUs")
+        model = torch.nn.DataParallel(model)
+
+    # Setup optimizer and scheduler
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=1000,
+        num_training_steps=100000
+    )
+
+    # Load dataset (automatically downloads if needed)
+    print(f"📊 Loading dataset: {dataset}")
+    train_ds = PiscesDataset(subset=dataset, split="train", config=cfg)
+    print(f"✅ Dataset loaded successfully, size: {len(train_ds)}")
+
+    # Create data loader
+    loader = DataLoader(
+        train_ds,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
+        collate_fn=collate_fn,
+        pin_memory=True
+    )
+    print("✅ DataLoader created successfully")
+
+    # Create save directory
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Training loop
+    print("🎯 Starting training loop...")
+    model.train()
+    for epoch in range(epochs):
+        total_loss = 0
+        for step, batch in enumerate(loader):
+            # Move to device
+            device_batch = {
+                k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
+                for k, v in batch.items()
+            }
+
+            # Forward pass
+            _, loss, _, _ = model(**device_batch)
+
+            # Multi-GPU handling
+            if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+                loss = loss.mean()
+
+            # Backward pass
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+
+            total_loss += loss.item()
+
+            if step % 50 == 0:
+                avg_loss = total_loss / (step + 1)
+                print(f"📈 Epoch {epoch + 1}/{epochs} | Step {step} | Loss: {avg_loss:.4f}")
+
+        # Save checkpoint
+        checkpoint_path = f"{save_dir}/pisces_{dataset}_epoch{epoch + 1}.pt"
+        save_ckpt(model, optimizer, epoch + 1, checkpoint_path)
+        print(f"💾 Checkpoint saved: {checkpoint_path}")
+
+    print("🎉 Training completed!")
+
+
+def infer(args):
+    """Inference function"""
+    print("🔮 Starting Pisces L1 Inference...")
+    
+    # Setup device
+    device = setup_device("auto")
+    
+    # Load config and model
+    cfg = PiscesConfig.from_json("configs/0.5B.json")
+    model = PiscesModel(cfg).to(device).eval()
+    
+    # Load checkpoint
+    if args.ckpt:
+        print(f"📂 Loading model: {args.ckpt}")
+        checkpoint = torch.load(args.ckpt, map_location=device)
+        if 'model' in checkpoint:
+            model.load_state_dict(checkpoint['model'])
+        else:
+            model.load_state_dict(checkpoint)
+        print("✅ Model loaded successfully")
+    else:
+        print("⚠️ No model file provided, using random weights")
+
+    # Load tokenizer
+    print("🔤 Loading tokenizer...")
+    try:
+        tokenizer = LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
+        print("✅ Tokenizer loaded successfully")
+    except Exception as e:
+        print(f"❌ Error loading tokenizer: {e}")
+        print("❌ Creating dummy tokenizer...")
+        from transformers import PreTrainedTokenizerFast
+        tokenizer = PreTrainedTokenizerFast(
+            tokenizer_object=None,
+            bos_token="<s>",
+            eos_token="</s>",
+            unk_token="<unk>",
+            pad_token="<pad>",
+            vocab_size=1000
+        )
+
+    # Prepare input
+    print(f"📝 Processing prompt: {args.prompt}")
+    input_ids = tokenizer.encode(args.prompt, return_tensors="pt").to(device)
+    
+    # Process image if provided
+    pixel_values = None
+    if args.image and os.path.exists(args.image):
+        print(f"🖼️ Processing image: {args.image}")
+        try:
+            img = Image.open(args.image).convert("RGB").resize((224, 224))
+            pixel_values = TF.to_tensor(img).unsqueeze(0).to(device)
+            print("✅ Image processed successfully")
+        except Exception as e:
+            print(f"❌ Error processing image: {e}")
+            pixel_values = None
+
+    # Generate
+    print("🚀 Generating response...")
+    with torch.no_grad():
+        outputs = model.generate(
+            input_ids=input_ids,
+            pixel_values=pixel_values,
+            max_length=input_ids.shape[1] + args.max_length,
+            temperature=args.temperature,
+            do_sample=True,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id
+        )
+
+    # Decode and print
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print("\n" + "="*50)
+    print("🤖 Generated Response:")
+    print("="*50)
+    print(generated_text)
+    print("="*50)
+
+
+def main():
+    """Main function"""
+    args = parse_args()
+    
+    if args.mode == "train":
+        train(args)
+    elif args.mode == "infer":
+        infer(args)
+    else:
+        print("❌ Invalid mode. Use 'train' or 'infer'")
+
+
+if __name__ == "__main__":
+    main() 
