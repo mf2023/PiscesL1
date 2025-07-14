@@ -19,6 +19,8 @@
 
 import os
 import sys
+import subprocess
+import platform
 import torch
 import argparse
 import json
@@ -35,17 +37,52 @@ from transformers import get_linear_schedule_with_warmup, LlamaTokenizerFast
 from PIL import Image
 from torchvision.transforms import functional as TF
 
+def setup_env():
+    """Auto setup venv and install requirements if needed"""
+    print("🐟 Pisces auto environment setup...")
+    py_exec = sys.executable
+    venv_dir = os.path.join(os.getcwd(), "pisces_env")
+    is_windows = platform.system().lower().startswith("win")
+    
+    # Check if in venv
+    if sys.prefix == sys.base_prefix:
+        print("🔧 Not in virtual environment. Creating venv...")
+        subprocess.check_call([py_exec, "-m", "venv", venv_dir])
+        print(f"✅ Virtual environment created at {venv_dir}")
+        # Activate venv and re-run setup in venv
+        if is_windows:
+            activate = os.path.join(venv_dir, "Scripts", "activate_this.py")
+        else:
+            activate = os.path.join(venv_dir, "bin", "activate_this.py")
+        exec(open(activate).read(), {'__file__': activate})
+        print("🔄 Re-running setup in venv...")
+        os.execv(os.path.join(venv_dir, "bin" if not is_windows else "Scripts", "python" + (".exe" if is_windows else "")), ["python"] + sys.argv)
+        return
+    else:
+        print("✅ Already in virtual environment.")
+    # Upgrade pip
+    print("⬆️ Upgrading pip...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    # Install requirements
+    print("📥 Installing requirements.txt...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    print("✅ Pisces environment setup complete!")
+    print("To activate the environment in the future:")
+    if is_windows:
+        print(".\\pisces_env\\Scripts\\Activate.ps1")
+    else:
+        print("source pisces_env/bin/activate")
+    print("To train: python run.py train\nTo infer: python run.py infer ...")
+    sys.exit(0)
 
 def parse_args():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="Pisces L1 - One-Click Training and Inference")
-    parser.add_argument("mode", nargs='?', default="train", choices=["train", "infer"], help="Mode: train or infer (default: train)")
-    
+    parser.add_argument("mode", nargs='?', default="train", choices=["train", "infer", "setup"], help="Mode: train, infer, or setup (default: train)")
     # Simple parameters with defaults
     parser.add_argument("--ckpt", default="", help="Model file for inference")
     parser.add_argument("--prompt", default="Hello, please introduce yourself", help="Prompt text for inference")
     parser.add_argument("--image", default="", help="Image path for inference")
-    
     return parser.parse_args()
 
 
@@ -267,12 +304,14 @@ def main():
     """Main function"""
     args = parse_args()
     
-    if args.mode == "train":
+    if args.mode == "setup":
+        setup_env()
+    elif args.mode == "train":
         train(args)
     elif args.mode == "infer":
         infer(args)
     else:
-        print("❌ Invalid mode. Use 'train' or 'infer'")
+        print("❌ Invalid mode. Use 'train', 'infer' or 'setup'")
 
 
 if __name__ == "__main__":

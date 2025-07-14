@@ -18,61 +18,20 @@ Before training, check your GPU status:
 python tools/check_gpu.py
 ```
 
-### Installation
+### Installation & Usage (One Command)
 
-#### Option 1: Using Virtual Environment (Recommended)
-
-**On Windows:**
-```powershell
-# Run the setup script
-.\setup_env.ps1
-
-# Or manually:
-python -m venv pisces_env
-.\pisces_env\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-**On Linux/macOS:**
 ```bash
-# Run the setup script
-chmod +x setup_env.sh
-./setup_env.sh
+# 1. Setup environment and install all dependencies (auto venv)
+python run.py setup
 
-# Or manually:
-python3 -m venv pisces_env
-source pisces_env/bin/activate
-pip install -r requirements.txt
-```
-
-#### Option 2: Direct Installation (Not Recommended)
-```bash
-pip install -r requirements.txt
-```
-
-**Note**: Running pip as root can cause permission issues. Use a virtual environment instead.
-
-### 🚀 One-Click Usage
-
-Pisces provides unified training and inference:
-
-#### Training
-```bash
-# Start training (auto-downloads dataset)
-python run.py train
-
-# Or just
+# 2. Start training (auto-downloads dataset)
 python run.py
-```
 
-#### Inference
-```bash
-# Text inference
+# 3. Inference
 python run.py infer --ckpt ckpt/pisces_tiny_stories_epoch1.pt --prompt "Hello"
-
-# Multimodal inference
-python run.py infer --ckpt ckpt/pisces_tiny_stories_epoch1.pt --prompt "Describe this image" --image image.jpg
 ```
+
+**Note**: No need to run any shell or PowerShell scripts. All environment setup and dependency installation are handled by `python run.py setup`.
 
 ## Model Architecture
 
