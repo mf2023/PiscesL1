@@ -17,20 +17,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import time, torch
-from model import PiscesModel, PiscesConfig
-
-cfg = PiscesConfig.from_json("configs/0.5B.json")
-# Smart device detection
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"✅\tUsing device: {device}")
-
-model = PiscesModel(cfg).to(device).eval()
-tok = torch.randint(0, cfg.vocab_size, (1, 8192)).to(device)
-torch.cuda.synchronize()
-t0 = time.time()
-with torch.no_grad():
-    _ = model(tok)
-torch.cuda.synchronize()
-
-print("\t8192 tokens forward:", time.time()-t0, "s")
+def help():
+    print("Pisces L1 Management Tool Help\n")
+    print("Available commands:")
+    print("  setup      - Environment setup and dependency installation")
+    print("  train      - Train the model")
+    print("  infer      - Run inference with a trained model")
+    print("  check      - Check GPU and dependencies")
+    print("  monitor    - System monitor (GPU/CPU/memory)")
+    print("  download   - Download datasets for training")
+    print("  arrow      - Arrow/JSON dataset conversion")
+    print("  help       - Show this help message")
+    print("\nExample usage:")
+    print("  python manage.py train")
+    print("  python manage.py infer --ckpt ckpt/model.pt --prompt 'Hello'")
+    print("  python manage.py help\n") 
