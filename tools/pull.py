@@ -17,20 +17,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch, os
-from utils.log import RIGHT
-from model import PiscesModel, PiscesConfig
-from transformers import BitsAndBytesConfig
+import sys
+import subprocess
+from utils.log import RIGHT, DEBUG, ERROR
 
-def quantize(checkpoint, save_path, bits=8):
-    cfg = PiscesConfig.from_json("configs/0.5B.json")
-    model = PiscesModel(cfg)
-    model.load_state_dict(torch.load(checkpoint, map_location='cpu')['model'])
-    if bits == 8:
-        import bitsandbytes as bnb
-        for m in model.modules():
-            if isinstance(m, torch.nn.Linear):
-                m.weight = bnb.nn.Params8bit(m.weight)
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    torch.save(model.state_dict(), save_path)
-    RIGHT("Quantized model saved to", save_path)
+def pull():
+    """
+    Pull latest code from remote repository.
+    """
+    remote_url = 'https://gitee.com/dunimd/piscesl1.git'
+    try:
+        DEBUG(f"Pulling latest code from {remote_url}...")
+        subprocess.run(['git', 'fetch', '--all'], check=True)
+        subprocess.run(['git', 'reset', '--hard', 'origin/master'], check=True)
+        RIGHT("Code successfully updated to the latest version")
+    except subprocess.CalledProcessError as e:
+        ERROR(f"Failed to pull code: {e}")
+        sys.exit(1)
