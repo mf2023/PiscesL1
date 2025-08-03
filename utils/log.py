@@ -17,21 +17,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import time, torch
-from utils.log import RIGHT
-from model import PiscesModel, PiscesConfig
+def RIGHT(content):
+    print(f"✅\t{content}")
 
-cfg = PiscesConfig.from_json("configs/0.5B.json")
-# Smart device detection
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-RIGHT(f"Using device: {device}")
+def DEBUG(content):
+    print(f"🟧\t{content}")
 
-model = PiscesModel(cfg).to(device).eval()
-tok = torch.randint(0, cfg.vocab_size, (1, 8192)).to(device)
-torch.cuda.synchronize()
-t0 = time.time()
-with torch.no_grad():
-    _ = model(tok)
-torch.cuda.synchronize()
-
-RIGHT("8192 tokens forward:", time.time()-t0, "s")
+def ERROR(content):
+    print(f"❌\t{content}")
