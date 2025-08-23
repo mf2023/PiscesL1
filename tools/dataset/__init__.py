@@ -17,3 +17,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import sys
+import subprocess
+from pathlib import Path
+
+def dataset(args=None):
+    """
+    Used to launch the dataset page via the command line from external entry points such as manage.py.
+    Forces execution via the command line and uses absolute paths to avoid issues caused by the current working directory (CWD).
+    """
+    # Resolve the absolute path to the main.py file
+    main_path = Path(__file__).resolve().parent / 'main.py'
+    # Run the streamlit application using the resolved path
+    subprocess.run([
+        sys.executable, '-m', 'streamlit', 'run', str(main_path)
+    ])

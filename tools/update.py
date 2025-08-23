@@ -17,3 +17,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import sys
+import subprocess
+from utils.log import RIGHT, DEBUG, ERROR
+
+def update():
+    """
+    Pull latest code from remote repository.
+    """
+    remote_url = 'https://gitee.com/dunimd/piscesl1.git'
+    try:
+        DEBUG(f"Pulling latest code from {remote_url}...")
+        subprocess.run(['git', 'fetch', '--all'], check=True)
+        subprocess.run(['git', 'reset', '--hard', 'origin/master'], check=True)
+        RIGHT("Code successfully updated to the latest version")
+    except subprocess.CalledProcessError as e:
+        ERROR(f"Failed to pull code: {e}")
+        sys.exit(1)
