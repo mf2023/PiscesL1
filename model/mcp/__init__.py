@@ -18,4 +18,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION = "1.0.0160"
+from .server import MCPServer, MCPRequest, MCPResponse, ToolCapability
+from .translator import MCPTranslationLayer, AgentCall, process_text_with_mcp, extract_agent_calls_sync
+
+# Define the public API of this module. 
+# Objects listed here are the ones that will be imported when `from . import *` is used.
+__all__ = [
+    "MCPServer",
+    "MCPRequest", 
+    "MCPResponse",
+    "ToolCapability",
+    "MCPTranslationLayer",
+    "AgentCall",
+    "process_text_with_mcp",
+    "extract_agent_calls_sync"
+]
