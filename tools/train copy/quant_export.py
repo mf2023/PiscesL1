@@ -96,7 +96,6 @@ class PiscesLxToolsQuantExporter:
             model_size = self.cfg.get('model.size', default=None)
         except Exception:
             model_size = None
-        
         # Use the new facade class instead of the function
         quantizer = PiscesLxCoreQuantizationFacade()
         quantizer.quantize_checkpoint(ckpt_path, save_path, resolved_bits, model_size=model_size)
