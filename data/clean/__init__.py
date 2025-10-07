@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .runner import PiscesLxToolsDatasetDownload
+from .core import PiscesLxToolsDatasetClean
+from .pipeline import DatasetCleaner
 
-__all__ = ["PiscesLxToolsDatasetDownload"]
+__all__ = ["PiscesLxToolsDatasetClean", "DatasetCleaner"]
