@@ -19,37 +19,36 @@
 # limitations under the License.
 
 """
-Base type definitions for Xi Studio.
+Welcome Service Module
 
-Contains enumeration types for commands, run status, and GPU vendors.
+Business logic for Welcome screen operations including:
+- Configuration validation
+- Environment setup
+- Agreement handling
 """
 
-from enum import Enum
+from .validator import (
+    PiscesL1WelcomeValidator,
+    ValidationResult,
+    get_welcome_validator,
+)
+from .setup import (
+    PiscesL1WelcomeSetup,
+    SetupResult,
+    get_welcome_setup,
+)
+from .agreement import (
+    PiscesL1WelcomeAgreement,
+    get_welcome_agreement,
+)
 
-
-class XiCommand(str, Enum):
-    TRAIN = "train"
-    INFERENCE = "inference"
-    SERVE = "serve"
-    BENCHMARK = "benchmark"
-    DOWNLOAD = "download"
-    MONITOR = "monitor"
-    TEST = "test"
-    CACHE = "cache"
-    DEV = "dev"
-
-
-class XiRunStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class XiGpuVendor(str, Enum):
-    NVIDIA = "nvidia"
-    AMD = "amd"
-    INTEL = "intel"
-    UNKNOWN = "unknown"
+__all__ = [
+    "PiscesL1WelcomeValidator",
+    "ValidationResult",
+    "get_welcome_validator",
+    "PiscesL1WelcomeSetup",
+    "SetupResult",
+    "get_welcome_setup",
+    "PiscesL1WelcomeAgreement",
+    "get_welcome_agreement",
+]

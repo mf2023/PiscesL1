@@ -19,37 +19,30 @@
 # limitations under the License.
 
 """
-Base type definitions for Xi Studio.
+Xi Service Layer
 
-Contains enumeration types for commands, run status, and GPU vendors.
+Business logic layer for Xi Studio server operations.
+This module separates business logic from communication layers (HTTP/WebSocket).
 """
 
-from enum import Enum
+from .welcome import (
+    PiscesL1WelcomeValidator,
+    PiscesL1WelcomeSetup,
+    PiscesL1WelcomeAgreement,
+    ValidationResult,
+    SetupResult,
+    get_welcome_validator,
+    get_welcome_setup,
+    get_welcome_agreement,
+)
 
-
-class XiCommand(str, Enum):
-    TRAIN = "train"
-    INFERENCE = "inference"
-    SERVE = "serve"
-    BENCHMARK = "benchmark"
-    DOWNLOAD = "download"
-    MONITOR = "monitor"
-    TEST = "test"
-    CACHE = "cache"
-    DEV = "dev"
-
-
-class XiRunStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class XiGpuVendor(str, Enum):
-    NVIDIA = "nvidia"
-    AMD = "amd"
-    INTEL = "intel"
-    UNKNOWN = "unknown"
+__all__ = [
+    "PiscesL1WelcomeValidator",
+    "PiscesL1WelcomeSetup",
+    "PiscesL1WelcomeAgreement",
+    "ValidationResult",
+    "SetupResult",
+    "get_welcome_validator",
+    "get_welcome_setup",
+    "get_welcome_agreement",
+]
